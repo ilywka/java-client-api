@@ -5,11 +5,15 @@
  */
 package com.offbytwo.jenkins.client;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.offbytwo.jenkins.client.util.EncodingUtils;
 import com.offbytwo.jenkins.client.util.RequestReleasingInputStream;
+import com.offbytwo.jenkins.client.util.ResponseUtils;
+import com.offbytwo.jenkins.client.util.UrlUtils;
 import com.offbytwo.jenkins.client.validator.HttpResponseValidator;
 import com.offbytwo.jenkins.model.BaseModel;
 import com.offbytwo.jenkins.model.Crumb;
@@ -17,7 +21,6 @@ import com.offbytwo.jenkins.model.ExtractHeader;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -52,8 +55,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import com.offbytwo.jenkins.client.util.ResponseUtils;
-import com.offbytwo.jenkins.client.util.UrlUtils;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 
 public class JenkinsHttpClient implements JenkinsHttpConnection {
@@ -76,7 +77,7 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
     /**
      * Create an unauthenticated Jenkins HTTP client
      *
-     * @param uri Location of the jenkins server (ex. http://localhost:8080)
+     * @param uri    Location of the jenkins server (ex. http://localhost:8080)
      * @param client Configured CloseableHttpClient to be used
      */
     public JenkinsHttpClient(URI uri, CloseableHttpClient client) {
@@ -96,7 +97,7 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
     /**
      * Create an unauthenticated Jenkins HTTP client
      *
-     * @param uri Location of the jenkins server (ex. http://localhost:8080)
+     * @param uri     Location of the jenkins server (ex. http://localhost:8080)
      * @param builder Configured HttpClientBuilder to be used
      */
     public JenkinsHttpClient(URI uri, HttpClientBuilder builder) {
@@ -115,7 +116,7 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
     /**
      * Create an authenticated Jenkins HTTP client
      *
-     * @param uri Location of the jenkins server (ex. http://localhost:8080)
+     * @param uri      Location of the jenkins server (ex. http://localhost:8080)
      * @param username Username to use when connecting
      * @param password Password or auth token to use when connecting
      */
@@ -126,8 +127,8 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
     /**
      * Create an authenticated Jenkins HTTP client
      *
-     * @param uri Location of the jenkins server (ex. http://localhost:8080)
-     * @param builder Configured HttpClientBuilder to be used
+     * @param uri      Location of the jenkins server (ex. http://localhost:8080)
+     * @param builder  Configured HttpClientBuilder to be used
      * @param username Username to use when connecting
      * @param password Password or auth token to use when connecting
      */
@@ -144,13 +145,31 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
      */
     @Override
     public <T extends BaseModel> T get(String path, Class<T> cls) throws IOException {
-        HttpGet getMethod = new HttpGet(UrlUtils.toJsonApiUri(uri, context, path));
+        JavaType javaType = mapper.getTypeFactory().constructType(cls);
+        T t = get(path, javaType, true);
+        t.setClient(this);
+        return t;
+    }
+
+    @Override
+    public <T> T get(String path, TypeReference<T> typeReference, boolean useJsonApi) throws IOException {
+        JavaType javaType = mapper.getTypeFactory().constructType(typeReference);
+        return get(path, javaType, useJsonApi);
+    }
+
+    private <T> T get(String path, JavaType javaType, boolean useJsonApi) throws IOException {
+        HttpGet getMethod;
+        if (useJsonApi) {
+            getMethod = new HttpGet(UrlUtils.toJsonApiUri(uri, context, path));
+        } else {
+            getMethod = new HttpGet(UrlUtils.toNoApiUri(uri, context, path));
+        }
 
         HttpResponse response = client.execute(getMethod, localContext);
         jenkinsVersion = ResponseUtils.getJenkinsVersion(response);
         try {
             httpResponseValidator.validateResponse(response);
-            return objectFromResponse(cls, response);
+            return objectFromResponse(javaType, response);
         } finally {
             EntityUtils.consume(response.getEntity());
             releaseConnection(getMethod);
@@ -241,7 +260,7 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
         }
 
         // Prepare file parameters
-        if(fileParams != null && !(fileParams.isEmpty())) {
+        if (fileParams != null && !(fileParams.isEmpty())) {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
 
@@ -429,7 +448,7 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
      */
     @Override
     public void post(String path, boolean crumbFlag) throws IOException {
-        post(path, null, null,null, crumbFlag);
+        post(path, null, null, null, crumbFlag);
     }
 
     /**
@@ -462,18 +481,19 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
         }
     }
 
-    
+
     /**
      * Add authentication to supplied builder.
-     * @param builder the builder to configure
-     * @param uri the server URI
+     *
+     * @param builder  the builder to configure
+     * @param uri      the server URI
      * @param username the username
      * @param password the password
      * @return the passed in builder
      */
-    protected static HttpClientBuilder addAuthentication(final HttpClientBuilder builder, 
-            final URI uri, final String username,
-            String password) {
+    protected static HttpClientBuilder addAuthentication(final HttpClientBuilder builder,
+                                                         final URI uri, final String username,
+                                                         String password) {
         if (isNotBlank(username)) {
             CredentialsProvider provider = new BasicCredentialsProvider();
             AuthScope scope = new AuthScope(uri.getHost(), uri.getPort(), "realm");
@@ -486,35 +506,38 @@ public class JenkinsHttpClient implements JenkinsHttpConnection {
         return builder;
     }
 
-    
+
     /**
      * Get the local context.
+     *
      * @return context
      */
     protected HttpContext getLocalContext() {
         return localContext;
     }
 
-    
+
     /**
      * Set the local context.
+     *
      * @param localContext the context
      */
     protected void setLocalContext(final HttpContext localContext) {
         this.localContext = localContext;
     }
 
-    
-    
-    
-    
     private <T extends BaseModel> T objectFromResponse(Class<T> cls, HttpResponse response) throws IOException {
+        T object = objectFromResponse(mapper.getTypeFactory().constructType(cls), response);
+        object.setClient(this);
+        return object;
+    }
+
+    private <T> T objectFromResponse(JavaType javaType, HttpResponse response) throws IOException {
         InputStream content = response.getEntity().getContent();
         byte[] bytes = ByteStreams.toByteArray(content);
-        T result = mapper.readValue(bytes, cls);
+        T result = mapper.readValue(bytes, javaType);
         // TODO: original:
         // T result = mapper.readValue(content, cls);
-        result.setClient(this);
         return result;
     }
 
