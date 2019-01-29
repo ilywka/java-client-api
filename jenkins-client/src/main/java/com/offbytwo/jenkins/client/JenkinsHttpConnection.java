@@ -5,7 +5,12 @@
  */
 package com.offbytwo.jenkins.client;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.offbytwo.jenkins.model.BaseModel;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.entity.ContentType;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -13,9 +18,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.entity.ContentType;
 
 /**
  *
@@ -42,6 +44,8 @@ public interface JenkinsHttpConnection extends Closeable {
      * @throws IOException in case of an error.
      */
     <T extends BaseModel> T get(String path, Class<T> cls) throws IOException;
+
+    <T> T get(String path, TypeReference<T> typeReference, boolean useJsonApi) throws IOException;
 
     /**
      * Perform a GET request and parse the response and return a simple string

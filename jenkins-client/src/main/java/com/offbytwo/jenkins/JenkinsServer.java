@@ -6,20 +6,6 @@
 
 package com.offbytwo.jenkins;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-
-import javax.xml.bind.JAXBException;
-
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpResponseException;
-import org.apache.http.entity.ContentType;
-import org.dom4j.DocumentException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -29,22 +15,20 @@ import com.offbytwo.jenkins.client.JenkinsHttpConnection;
 import com.offbytwo.jenkins.client.util.EncodingUtils;
 import com.offbytwo.jenkins.client.util.UrlUtils;
 import com.offbytwo.jenkins.helper.JenkinsVersion;
-import com.offbytwo.jenkins.model.Build;
-import com.offbytwo.jenkins.model.Computer;
-import com.offbytwo.jenkins.model.ComputerSet;
-import com.offbytwo.jenkins.model.FolderJob;
-import com.offbytwo.jenkins.model.Job;
-import com.offbytwo.jenkins.model.JobConfiguration;
-import com.offbytwo.jenkins.model.JobWithDetails;
-import com.offbytwo.jenkins.model.LabelWithDetails;
-import com.offbytwo.jenkins.model.MainView;
-import com.offbytwo.jenkins.model.MavenJobWithDetails;
-import com.offbytwo.jenkins.model.PluginManager;
-import com.offbytwo.jenkins.model.Queue;
-import com.offbytwo.jenkins.model.QueueItem;
-import com.offbytwo.jenkins.model.QueueReference;
-import com.offbytwo.jenkins.model.View;
+import com.offbytwo.jenkins.model.*;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpResponseException;
+import org.apache.http.entity.ContentType;
+import org.dom4j.DocumentException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.xml.bind.JAXBException;
 import java.io.Closeable;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The main starting point for interacting with a Jenkins server.
@@ -259,9 +243,28 @@ public class JenkinsServer implements Closeable {
         }
     }
 
+    public WorkflowJob getWorkFlowJob(String jobName) throws IOException {
+        return getWorkFlowJob(null, jobName);
+    }
+
+    public WorkflowJob getWorkFlowJob(FolderJob folder, String jobName) throws IOException {
+        try {
+            WorkflowJob job = client.get(UrlUtils.toJobBaseUrl(folder, jobName), WorkflowJob.class);
+            job.setClient(client);
+
+            return job;
+        } catch (HttpResponseException e) {
+            LOGGER.debug("getWorkflowJob(folder={}, jobName={}) status={}", folder, jobName, e.getStatusCode());
+            if (e.getStatusCode() == HttpStatus.SC_NOT_FOUND) {
+                return null;
+            }
+            throw e;
+        }
+    }
+
     /**
      * Get a single Job from the server.
-     * 
+     *
      * @param jobName name of the job to get details of.
      * @return A single Job, null if not present
      * @throws IOException in case of an error.
@@ -272,7 +275,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Get a single Job from the given folder.
-     * 
+     *
      * @param folder {@link FolderJob}
      * @param jobName name of the job to get details of.
      * @return A single Job, null if not present
@@ -335,7 +338,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Create a job on the server using the provided xml
-     * 
+     *
      * @param jobName name of the job to be created.
      * @param jobXml the <code>config.xml</code> which should be used to create
      *            the job.
@@ -347,7 +350,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Create a job on the server using the provided xml
-     * 
+     *
      * @param jobName name of the job to be created.
      * @param jobXml the <code>config.xml</code> which should be used to create
      *            the job.
@@ -391,7 +394,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Create a view on the server using the provided xml
-     * 
+     *
      * @param viewName name of the view to be created.
      * @param viewXml The configuration for the view.
      * @throws IOException in case of an error.
@@ -416,7 +419,7 @@ public class JenkinsServer implements Closeable {
     /**
      * Create a view on the server using the provided xml and in the provided
      * folder.
-     * 
+     *
      * @param folder {@link FolderJob}
      * @param viewName name of the view to be created.
      * @param viewXml The configuration for the view.
@@ -429,7 +432,7 @@ public class JenkinsServer implements Closeable {
     /**
      * Create a view on the server using the provided xml and in the provided
      * folder.
-     * 
+     *
      * @param folder the folder.
      * @param viewName the view name.
      * @param viewXml the view xml.
@@ -444,7 +447,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Create a folder on the server (in the root)
-     * 
+     *
      * @param folderName name of the folder.
      * @throws IOException in case of an error.
      */
@@ -454,7 +457,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Create a folder on the server (in the root)
-     * 
+     *
      * @param folderName name of the folder.
      * @param crumbFlag <code>true</code> to add <b>crumbIssuer</b>
      *            <code>false</code> otherwise.
@@ -505,7 +508,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Get the xml description of an existing job.
-     * 
+     *
      * @param jobName name of the job.
      * @param folder {@link FolderJob}
      * @return the new job object
@@ -517,7 +520,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Get the description of an existing Label
-     * 
+     *
      * @param labelName name of the label.
      * @return {@link LabelWithDetails}
      * @throws IOException in case of an error.
@@ -548,7 +551,7 @@ public class JenkinsServer implements Closeable {
      * The ComputerSet class will give informations like
      * {@link ComputerSet#getBusyExecutors()} or the
      * {@link ComputerSet#getTotalExecutors()}.
-     * 
+     *
      * @return {@link ComputerSet}
      * @throws IOException in case of an error.
      */
@@ -558,7 +561,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * This will give you back the {@link PluginManager}.
-     * 
+     *
      * @return {@link PluginManager}
      * @throws IOException in case of a failure.
      */
@@ -580,7 +583,7 @@ public class JenkinsServer implements Closeable {
     public void updateView(String viewName, String viewXml, boolean crumbFlag) throws IOException {
         client.post_xml("/view/" + EncodingUtils.encode(viewName) + "/config.xml", viewXml, crumbFlag);
     }
-    
+
     public void updateView(FolderJob folder, String viewName, String viewXml) throws IOException {
         client.post_xml(UrlUtils.toBaseUrl(folder) + "view/" + EncodingUtils.encode(viewName) + "/config.xml", viewXml, true);
     }
@@ -644,7 +647,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Sends the Quiet Down (Prepare for shutdown) message
-     * 
+     *
      * @throws IOException in case of an error.
      */
     public void quietDown() throws IOException {
@@ -658,7 +661,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Cancels the Quiet Down (Prepare for shutdown) message
-     * 
+     *
      * @throws IOException in case of an error.
      */
     public void cancelQuietDown() throws IOException {
@@ -683,7 +686,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Delete a job from Jenkins within a folder.
-     * 
+     *
      * @param folder The folder where the given job is located.
      * @param jobName The job which should be deleted.
      * @param crumbFlag The crumbFlag
@@ -695,7 +698,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Delete a job from jenkins
-     * 
+     *
      * @param jobName The name of the job which should be deleted.
      * @throws IOException in case of an error.
      */
@@ -705,7 +708,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Delete a job from Jenkins.
-     * 
+     *
      * @param jobName The name of the job to be deleted.
      * @param crumbFlag <code>true</code> to add <b>crumbIssuer</b>
      *            <code>false</code> otherwise.
@@ -717,7 +720,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Disable a job from jenkins
-     * 
+     *
      * @param jobName The name of the job which should be disabled.
      * @throws IOException in case of an error.
      */
@@ -739,7 +742,7 @@ public class JenkinsServer implements Closeable {
 
     /**
      * Enable a job from jenkins
-     * 
+     *
      * @param jobName name of the job which should be enabled.
      * @throws IOException In case of an failure.
      */
@@ -883,13 +886,13 @@ public class JenkinsServer implements Closeable {
      */
     public void renameJob(FolderJob folder, String oldJobName, String newJobName, Boolean crumbFlag)
             throws IOException {
-        client.post(UrlUtils.toJobBaseUrl(folder, oldJobName) 
+        client.post(UrlUtils.toJobBaseUrl(folder, oldJobName)
             + "/doRename?newName=" + EncodingUtils.encodeParam(newJobName),
                crumbFlag);
     }
-    
-    
-    
+
+
+
     /**
      * Closes underlying resources.
      * Closed instances should no longer be used
@@ -903,7 +906,7 @@ public class JenkinsServer implements Closeable {
 
 	/**
 	 * Restart Jenkins without waiting for any existing build to complete
-	 * 
+	 *
 	 * @param crumbFlag
 	 *            <code>true</code> to add <b>crumbIssuer</b> <code>false</code>
 	 *            otherwise.
@@ -921,7 +924,7 @@ public class JenkinsServer implements Closeable {
 	/**
 	 * safeRestart: Puts Jenkins into the quiet mode, wait for existing builds
 	 * to be completed, and then restart Jenkins
-	 * 
+	 *
 	 * @param crumbFlag
 	 *            <code>true</code> to add <b>crumbIssuer</b> <code>false</code>
 	 *            otherwise.
@@ -938,7 +941,7 @@ public class JenkinsServer implements Closeable {
 
 	/**
 	 * Shutdown Jenkins without waiting for any existing build to complete
-	 * 
+	 *
 	 * @param crumbFlag
 	 *            <code>true</code> to add <b>crumbIssuer</b> <code>false</code>
 	 *            otherwise.
@@ -957,7 +960,7 @@ public class JenkinsServer implements Closeable {
 	/**
 	 * safeExit: Puts Jenkins into the quiet mode, wait for existing builds to
 	 * be completed, and then shut down Jenkins
-	 * 
+	 *
 	 * @param crumbFlag
 	 *            <code>true</code> to add <b>crumbIssuer</b> <code>false</code>
 	 *            otherwise.
