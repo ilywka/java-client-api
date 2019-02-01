@@ -65,19 +65,27 @@ public class WorkflowJob extends BaseModel {
         }, false);
         if (CollectionUtils.isNotEmpty(workflowJobRuns)) {
             for (WorkflowJobRun workflowJobRun : workflowJobRuns) {
-                String workflowJobRunUrl = UrlUtils.join(url, workflowJobRun.getId());
-                workflowJobRun.setUrl(workflowJobRunUrl);
-                workflowJobRun.setClient(client);
-                if (CollectionUtils.isNotEmpty(workflowJobRun.getStages())) {
-                    for (WfStage stage : workflowJobRun.getStages()) {
-                        stage.setClient(client);
-                        stage.setUrl(UrlUtils.join(workflowJobRunUrl, "execution/node/" + stage.getId()));
-                        stage.fillNodes();
-                    }
-                }
-                workflowJobRun.fillChangeSetsWfApi();
+                fillWorkflowData(workflowJobRun);
             }
             this.runs = workflowJobRuns;
+        }
+    }
+
+    private void fillWorkflowData(WorkflowJobRun workflowJobRun) throws IOException {
+        String workflowJobRunUrl = UrlUtils.join(url, workflowJobRun.getId());
+        workflowJobRun.setUrl(workflowJobRunUrl);
+        workflowJobRun.setClient(client);
+        if (CollectionUtils.isNotEmpty(workflowJobRun.getStages())) {
+            fillStageData(workflowJobRun, workflowJobRunUrl);
+        }
+        workflowJobRun.fillChangeSetsWfApi();
+    }
+
+    private void fillStageData(WorkflowJobRun workflowJobRun, String workflowJobRunUrl) throws IOException {
+        for (WfStage stage : workflowJobRun.getStages()) {
+            stage.setClient(client);
+            stage.setUrl(UrlUtils.join(workflowJobRunUrl, "execution/node/" + stage.getId()));
+            stage.fillNodes();
         }
     }
 
