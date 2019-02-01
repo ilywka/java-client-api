@@ -20,7 +20,7 @@
 
   <groupId>com.offbytwo.jenkins</groupId>
   <artifactId>jenkins-client-parent</artifactId>
-  <version>0.3.8</version>
+  <version>0.3.8.1-perf</version>
   <packaging>pom</packaging>
 
   <scm>
@@ -455,7 +455,7 @@
                 <id>sign-artifacts</id>
                 <phase>verify</phase>
                 <goals>
-                  <goal>sign</goal>
+                  <!--<goalx>sign</goal>-->
                 </goals>
               </execution>
             </executions>
