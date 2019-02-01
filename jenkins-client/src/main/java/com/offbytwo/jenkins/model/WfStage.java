@@ -101,7 +101,9 @@ public class WfStage extends BaseModel {
 
     public void fillNodes() throws IOException {
         WfStage wfStage = client.get(UrlUtils.join(url, "/wfapi"), new TypeReference<WfStage>() {}, false);
-        this.executionNodes = wfStage.getExecutionNodes();
+        if (wfStage != null) {
+            this.executionNodes = wfStage.getExecutionNodes();
+        }
     }
 
     @Override

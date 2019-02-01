@@ -2,6 +2,7 @@ package com.offbytwo.jenkins.model;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.offbytwo.jenkins.client.util.UrlUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
@@ -62,18 +63,22 @@ public class WorkflowJob extends BaseModel {
         String runsUrl = UrlUtils.join(url, "wfapi/runs");
         List<WorkflowJobRun> workflowJobRuns = client.get(runsUrl, new TypeReference<List<WorkflowJobRun>>() {
         }, false);
-        for (WorkflowJobRun workflowJobRun : workflowJobRuns) {
-            String workflowJobRunUrl = UrlUtils.join(url, workflowJobRun.getId());
-            workflowJobRun.setUrl(workflowJobRunUrl);
-            workflowJobRun.setClient(client);
-            for (WfStage stage : workflowJobRun.getStages()) {
-                stage.setClient(client);
-                stage.setUrl(UrlUtils.join(workflowJobRunUrl, "execution/node/" + stage.getId()));
-                stage.fillNodes();
+        if (CollectionUtils.isNotEmpty(workflowJobRuns)) {
+            for (WorkflowJobRun workflowJobRun : workflowJobRuns) {
+                String workflowJobRunUrl = UrlUtils.join(url, workflowJobRun.getId());
+                workflowJobRun.setUrl(workflowJobRunUrl);
+                workflowJobRun.setClient(client);
+                if (CollectionUtils.isNotEmpty(workflowJobRun.getStages())) {
+                    for (WfStage stage : workflowJobRun.getStages()) {
+                        stage.setClient(client);
+                        stage.setUrl(UrlUtils.join(workflowJobRunUrl, "execution/node/" + stage.getId()));
+                        stage.fillNodes();
+                    }
+                }
+                workflowJobRun.fillChangeSetsWfApi();
             }
-            workflowJobRun.fillChangeSetsWfApi();
+            this.runs = workflowJobRuns;
         }
-        this.runs = workflowJobRuns;
     }
 
 
