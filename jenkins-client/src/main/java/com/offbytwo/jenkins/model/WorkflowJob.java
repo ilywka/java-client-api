@@ -1,5 +1,6 @@
 package com.offbytwo.jenkins.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.offbytwo.jenkins.client.util.UrlUtils;
 import org.apache.commons.collections.CollectionUtils;
@@ -7,6 +8,7 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,6 +19,7 @@ public class WorkflowJob extends BaseModel {
     private String name;
     private String url;
     private String description;
+    @JsonProperty("builds")
     private List<WorkflowJobRun> runs;
 
     public WorkflowJob() {
@@ -60,31 +63,30 @@ public class WorkflowJob extends BaseModel {
     }
 
     public void fillBuildsWfApi() throws IOException {
-        String runsUrl = UrlUtils.join(url, "wfapi/runs");
-        List<WorkflowJobRun> workflowJobRuns = client.get(runsUrl, new TypeReference<List<WorkflowJobRun>>() {
-        }, false);
-        if (CollectionUtils.isNotEmpty(workflowJobRuns)) {
-            for (WorkflowJobRun workflowJobRun : workflowJobRuns) {
-                fillWorkflowData(workflowJobRun);
+        if (CollectionUtils.isNotEmpty(runs)) {
+            List<WorkflowJobRun> runsWithDetails = new ArrayList<>();
+            for (WorkflowJobRun run : runs) {
+                WorkflowJobRun wfRunsWithDetails = client.get(run.getUrl() + "/wfapi", new TypeReference<WorkflowJobRun>() {}, false);
+                wfRunsWithDetails.setUrl(run.getUrl());
+                fillWorkflowData(wfRunsWithDetails);
+                runsWithDetails.add(wfRunsWithDetails);
             }
-            this.runs = workflowJobRuns;
+            runs = runsWithDetails;
         }
     }
 
     private void fillWorkflowData(WorkflowJobRun workflowJobRun) throws IOException {
-        String workflowJobRunUrl = UrlUtils.join(url, workflowJobRun.getId());
-        workflowJobRun.setUrl(workflowJobRunUrl);
         workflowJobRun.setClient(client);
         if (CollectionUtils.isNotEmpty(workflowJobRun.getStages())) {
-            fillStageData(workflowJobRun, workflowJobRunUrl);
+            fillStageData(workflowJobRun);
         }
         workflowJobRun.fillChangeSetsWfApi();
     }
 
-    private void fillStageData(WorkflowJobRun workflowJobRun, String workflowJobRunUrl) throws IOException {
+    private void fillStageData(WorkflowJobRun workflowJobRun) throws IOException {
         for (WfStage stage : workflowJobRun.getStages()) {
             stage.setClient(client);
-            stage.setUrl(UrlUtils.join(workflowJobRunUrl, "execution/node/" + stage.getId()));
+            stage.setUrl(UrlUtils.join(workflowJobRun.getUrl(), "execution/node/" + stage.getId()));
             stage.fillNodes();
         }
     }

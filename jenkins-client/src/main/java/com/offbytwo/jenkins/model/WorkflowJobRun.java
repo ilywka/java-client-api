@@ -1,6 +1,5 @@
 package com.offbytwo.jenkins.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.offbytwo.jenkins.client.util.UrlUtils;
@@ -26,7 +25,6 @@ public class WorkflowJobRun extends BaseModel {
     private Long pauseDurationMillis;
     private List<WfStage> stages;
     private List<WfChangeSet> changeSets;
-    @JsonIgnore
     private String url;
 
     public WorkflowJobRun() {
