@@ -7,7 +7,11 @@
 package com.offbytwo.jenkins.client.util;
 
 import com.offbytwo.jenkins.model.FolderJob;
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.client.utils.URIUtils;
+
 import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Utility class for manipulating API paths.
@@ -134,7 +138,19 @@ public final class UrlUtils {
             final String[] components = p.split("\\?", 2);
             p = join(components[0], "api/json") + "?" + components[1];
         }
-        return uri.resolve("/").resolve(p.replace(" ", "%20"));
+        URI resultUri = uri.resolve("/").resolve(p.replace(" ", "%20"));
+        resultUri = verifyHost(uri, resultUri);
+        return resultUri;
+    }
+
+    private static URI verifyHost(URI uri, URI resultUri) {
+        if (!StringUtils.equals(resultUri.getHost(), uri.getHost())) {
+            try {
+                resultUri = URIUtils.rewriteURI(resultUri, URIUtils.extractHost(uri));
+            } catch (URISyntaxException ignored) {
+            }
+        }
+        return resultUri;
     }
 
     /**
@@ -146,7 +162,8 @@ public final class UrlUtils {
      */
     public static URI toNoApiUri(final URI uri, final String context, final String path) {
         final String p = path.matches("(?i)https?://.*") ? path : join(context, path);
-        return uri.resolve("/").resolve(p);
+        URI resultUri = uri.resolve("/").resolve(p);
+        return verifyHost(uri, resultUri);
     }
     
     

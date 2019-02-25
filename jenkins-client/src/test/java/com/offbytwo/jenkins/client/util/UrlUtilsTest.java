@@ -6,10 +6,12 @@
 package com.offbytwo.jenkins.client.util;
 
 import com.offbytwo.jenkins.model.FolderJob;
+import org.junit.Test;
+
 import java.net.URI;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import org.junit.Test;
 
 
 
@@ -225,6 +227,14 @@ public class UrlUtilsTest {
         final String suri = "http://localhost/jenkins";
         final URI uri = UrlUtils.toJsonApiUri(new URI(suri), "", "");
         final String expected = "http://localhost/api/json";
+        assertEquals(expected, uri.toString());
+    }
+
+    @Test
+    public void testToQueryUri_HostsDoesntMatch() throws Exception {
+        final String suri = "http://localhost/jenkins";
+        final URI uri = UrlUtils.toJsonApiUri(new URI(suri), "", "http://some.otherhost.net/job/somejob");
+        final String expected = "http://localhost/job/somejob/api/json";
         assertEquals(expected, uri.toString());
     }
     
